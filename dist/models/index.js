@@ -19,4 +19,6 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./causas-eje"), exports);
 __exportStar(require("./configuracion-eje"), exports);
+__exportStar(require("./manager-config-eje"), exports);
+__exportStar(require("./worker-stats-eje"), exports);
 //# sourceMappingURL=index.js.map
