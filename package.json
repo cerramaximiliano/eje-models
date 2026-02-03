@@ -1,0 +1,29 @@
+{
+  "name": "eje-models",
+  "version": "1.0.0",
+  "description": "Modelos de MongoDB para el sistema EJE (Expediente Judicial Electrónico) - Poder Judicial de la Ciudad de Buenos Aires",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "eje",
+    "juscaba",
+    "poder-judicial",
+    "caba",
+    "mongoose",
+    "models"
+  ],
+  "author": "Law Analytics",
+  "license": "ISC",
+  "dependencies": {
+    "mongoose": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
