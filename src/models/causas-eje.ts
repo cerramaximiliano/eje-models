@@ -28,6 +28,29 @@ export interface ICausaRelacionada {
   relacion: string;       // Acumulada, Conexa, Principal, etc.
 }
 
+// Interface para control de actualizaciones por usuario
+export interface IUserUpdateEnabled {
+  userId: mongoose.Types.ObjectId;
+  enabled: boolean;
+}
+
+// Interface para historial de actualizaciones
+export interface IUpdateHistoryEntry {
+  timestamp: Date;
+  source: string;
+  updateType: 'link' | 'unlink' | 'update' | 'verify' | 'scrape';
+  success: boolean;
+  movimientosAdded: number;
+  movimientosTotal: number;
+  details?: {
+    message?: string;
+    folderId?: string;
+    userId?: string;
+    searchTerm?: string;
+    error?: string;
+  };
+}
+
 export interface ICausasEje extends Document {
   // ========== IDENTIFICACIÓN ==========
   cuij: string;                     // Código Único de Identificación Judicial
@@ -76,8 +99,16 @@ export interface ICausasEje extends Document {
   errorCount: number;
   stuckSince?: Date;
 
-  // ========== VINCULACIÓN CON USUARIOS ==========
-  // Los folders se vinculan por causaId desde la colección folders
+  // Bloqueo para escalamiento de workers (evita colisiones)
+  lockedBy?: string;              // ID del worker que bloqueó el documento
+  lockedAt?: Date;                // Cuándo fue bloqueado
+
+  // ========== VINCULACIÓN CON FOLDERS Y USUARIOS ==========
+  folderIds: mongoose.Types.ObjectId[];       // Folders que referencian esta causa
+  userCausaIds: mongoose.Types.ObjectId[];    // Usuarios que tienen esta causa
+  userUpdatesEnabled: IUserUpdateEnabled[];   // Control de actualizaciones por usuario
+  update: boolean;                            // Si al menos un usuario requiere actualizaciones
+  updateHistory: IUpdateHistoryEntry[];       // Historial de operaciones
 
   // ========== TIMESTAMPS ==========
   createdAt: Date;
@@ -105,6 +136,31 @@ const CausaRelacionadaSchema = new Schema<ICausaRelacionada>({
   cuij: { type: String, required: true },
   caratula: { type: String },
   relacion: { type: String, required: true }
+}, { _id: false });
+
+const UserUpdateEnabledSchema = new Schema<IUserUpdateEnabled>({
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  enabled: { type: Boolean, default: true }
+}, { _id: false });
+
+const UpdateHistoryEntrySchema = new Schema<IUpdateHistoryEntry>({
+  timestamp: { type: Date, default: Date.now },
+  source: { type: String, required: true },
+  updateType: {
+    type: String,
+    enum: ['link', 'unlink', 'update', 'verify', 'scrape'],
+    required: true
+  },
+  success: { type: Boolean, required: true },
+  movimientosAdded: { type: Number, default: 0 },
+  movimientosTotal: { type: Number, default: 0 },
+  details: {
+    message: { type: String },
+    folderId: { type: String },
+    userId: { type: String },
+    searchTerm: { type: String },
+    error: { type: String }
+  }
 }, { _id: false });
 
 // ========== SCHEMA PRINCIPAL ==========
@@ -164,7 +220,18 @@ const CausasEjeSchema = new Schema<ICausasEje>({
   detailsLastUpdate: { type: Date },
   lastError: { type: String },
   errorCount: { type: Number, default: 0 },
-  stuckSince: { type: Date }
+  stuckSince: { type: Date },
+
+  // Bloqueo para escalamiento de workers
+  lockedBy: { type: String },
+  lockedAt: { type: Date },
+
+  // Vinculación con folders y usuarios
+  folderIds: [{ type: Schema.Types.ObjectId, ref: 'Folder' }],
+  userCausaIds: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  userUpdatesEnabled: { type: [UserUpdateEnabledSchema], default: [] },
+  update: { type: Boolean, default: false },
+  updateHistory: { type: [UpdateHistoryEntrySchema], default: [] }
 }, {
   timestamps: true,
   collection: 'causas-eje'
@@ -184,6 +251,11 @@ CausasEjeSchema.index({ errorCount: 1 });
 
 // Índice para búsqueda por carátula
 CausasEjeSchema.index({ caratula: 'text' });
+
+// Índices para vinculación con folders y usuarios
+CausasEjeSchema.index({ folderIds: 1 });
+CausasEjeSchema.index({ userCausaIds: 1 });
+CausasEjeSchema.index({ update: 1 });
 
 // ========== MÉTODOS ESTÁTICOS ==========
 
