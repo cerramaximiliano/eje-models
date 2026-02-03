@@ -58,10 +58,14 @@ export interface ICausasEje extends Document {
   // ========== CAUSAS RELACIONADAS ==========
   causasRelacionadas: ICausaRelacionada[];
 
+  // ========== ESTADO DEL EXPEDIENTE ==========
+  estado?: string;            // "EN LETRA", etc. (del badge en resultados)
+  isPrivate: boolean;         // true si tiene candado (expediente privado)
+
   // ========== ESTADO DE PROCESAMIENTO ==========
   source: 'app' | 'import' | 'scraping';
-  verified: boolean;
-  isValid: boolean;
+  verified: boolean;          // true = se verificó si existe
+  isValid: boolean;           // true = existe, false = no existe
   lastUpdate?: Date;
 
   // ========== CONTROL DE WORKERS ==========
@@ -139,6 +143,10 @@ const CausasEjeSchema = new Schema<ICausasEje>({
 
   // Causas relacionadas
   causasRelacionadas: { type: [CausaRelacionadaSchema], default: [] },
+
+  // Estado del expediente
+  estado: { type: String },              // "EN LETRA", etc.
+  isPrivate: { type: Boolean, default: false },
 
   // Estado de procesamiento
   source: {
