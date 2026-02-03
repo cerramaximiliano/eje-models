@@ -2,7 +2,7 @@
  * Modelo ConfiguracionEje
  * Configuración de workers para el sistema EJE
  */
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
 // ========== INTERFACES ==========
 
@@ -277,7 +277,18 @@ ConfiguracionEjeSchema.statics.logError = async function(error: Error, documentI
   );
 };
 
+// ========== INTERFACE DE MODELO ESTÁTICO ==========
+
+export interface IConfiguracionEjeModel extends Model<IConfiguracionEje> {
+  getOrCreate(workerId?: string): Promise<IConfiguracionEje>;
+  getConfig(): Promise<IConfiguracionEje | null>;
+  updateConfig(updates: Partial<IConfiguracionEje>): Promise<IConfiguracionEje>;
+  isWithinWorkingHours(): Promise<boolean>;
+  logSuccess(movimientosCount?: number): Promise<IConfiguracionEje | null>;
+  logError(error: Error, documentId?: mongoose.Types.ObjectId): Promise<IConfiguracionEje | null>;
+}
+
 // ========== EXPORT ==========
 
-export const ConfiguracionEje = mongoose.model<IConfiguracionEje>('ConfiguracionEje', ConfiguracionEjeSchema);
+export const ConfiguracionEje = mongoose.model<IConfiguracionEje, IConfiguracionEjeModel>('ConfiguracionEje', ConfiguracionEjeSchema);
 export default ConfiguracionEje;
