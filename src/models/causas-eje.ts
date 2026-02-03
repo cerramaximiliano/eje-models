@@ -13,15 +13,13 @@ export interface IMovimiento {
   descripcion: string;
   detalle?: string;
   firmante?: string;
-  fojas?: string;
+  numero?: string;         // Número de actuación (ej: "19841413/2025")
 }
 
 export interface IInterviniente {
   tipo: string;           // Actor, Demandado, Letrado, Tercero, etc.
   nombre: string;
-  cargo?: string;         // Apoderado, Patrocinante, etc.
-  matricula?: string;
-  domicilioElectronico?: string;
+  representante?: string; // Ej: "MANDATARIO (AGIP): JUAN MARTIN, CAGNI FAZZIO"
 }
 
 export interface ICausaRelacionada {
@@ -90,15 +88,13 @@ const MovimientoSchema = new Schema<IMovimiento>({
   descripcion: { type: String, required: true },
   detalle: { type: String },
   firmante: { type: String },
-  fojas: { type: String }
+  numero: { type: String }
 }, { _id: false });
 
 const IntervinienteSchema = new Schema<IInterviniente>({
   tipo: { type: String, required: true },
   nombre: { type: String, required: true },
-  cargo: { type: String },
-  matricula: { type: String },
-  domicilioElectronico: { type: String }
+  representante: { type: String }
 }, { _id: false });
 
 const CausaRelacionadaSchema = new Schema<ICausaRelacionada>({
