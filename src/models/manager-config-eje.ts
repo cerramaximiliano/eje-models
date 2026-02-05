@@ -11,6 +11,13 @@ export type ManagerType = 'verification' | 'update' | 'stuck';
 
 // ========== INTERFACES ==========
 
+export interface IWorkerSchedule {
+  workStartHour: number;           // hora inicio (0-23)
+  workEndHour: number;             // hora fin (0-23)
+  workDays: number[];              // días de trabajo (0=dom, 1=lun, ... 6=sab)
+  useGlobalSchedule: boolean;      // true = usa horario global, false = usa propio
+}
+
 export interface IManagerWorkerConfig {
   // Habilitación
   enabled: boolean;
@@ -23,10 +30,16 @@ export interface IManagerWorkerConfig {
   scaleUpThreshold: number;        // Docs pendientes para escalar UP
   scaleDownThreshold: number;      // Docs pendientes para escalar DOWN
 
+  // Umbrales de tiempo (específico por worker)
+  updateThresholdHours: number;    // Horas para considerar doc desactualizado (default 24)
+
   // Procesamiento
   batchSize: number;               // Docs por ciclo
   delayBetweenRequests: number;    // ms entre requests
   maxRetries: number;              // Reintentos máximos
+
+  // Horario específico del worker
+  schedule: IWorkerSchedule;
 
   // Cron
   cronExpression: string;          // Expresión cron del worker
@@ -181,15 +194,24 @@ export interface IManagerConfigEje extends Document {
 
 // ========== VALORES POR DEFECTO ==========
 
+const DEFAULT_WORKER_SCHEDULE: IWorkerSchedule = {
+  workStartHour: 0,
+  workEndHour: 23,
+  workDays: [0, 1, 2, 3, 4, 5, 6],
+  useGlobalSchedule: true
+};
+
 const DEFAULT_WORKER_CONFIG: IManagerWorkerConfig = {
   enabled: true,
   minWorkers: 1,
   maxWorkers: 3,
   scaleUpThreshold: 100,
   scaleDownThreshold: 10,
+  updateThresholdHours: 24,
   batchSize: 10,
   delayBetweenRequests: 2000,
   maxRetries: 3,
+  schedule: { ...DEFAULT_WORKER_SCHEDULE },
   cronExpression: '*/2 * * * *',
   workerName: 'eje-worker',
   workerScript: './dist/workers/worker.js',
@@ -206,15 +228,24 @@ const DEFAULT_WORKER_STATUS: IWorkerStatus = {
 
 // ========== SCHEMAS ==========
 
+const WorkerScheduleSchema = new Schema<IWorkerSchedule>({
+  workStartHour: { type: Number, default: 0 },
+  workEndHour: { type: Number, default: 23 },
+  workDays: { type: [Number], default: [0, 1, 2, 3, 4, 5, 6] },
+  useGlobalSchedule: { type: Boolean, default: true }
+}, { _id: false });
+
 const WorkerConfigSchema = new Schema<IManagerWorkerConfig>({
   enabled: { type: Boolean, default: true },
   minWorkers: { type: Number, default: 1 },
   maxWorkers: { type: Number, default: 3 },
   scaleUpThreshold: { type: Number, default: 100 },
   scaleDownThreshold: { type: Number, default: 10 },
+  updateThresholdHours: { type: Number, default: 24 },
   batchSize: { type: Number, default: 10 },
   delayBetweenRequests: { type: Number, default: 2000 },
   maxRetries: { type: Number, default: 3 },
+  schedule: { type: WorkerScheduleSchema, default: () => ({ ...DEFAULT_WORKER_SCHEDULE }) },
   cronExpression: { type: String, default: '*/2 * * * *' },
   workerName: { type: String, default: 'eje-worker' },
   workerScript: { type: String, default: './dist/workers/worker.js' },
@@ -240,7 +271,14 @@ const ManagerSettingsSchema = new Schema<IManagerSettings>({
         workerScript: './dist/workers/verification-worker.js',
         cronExpression: '*/2 * * * *',
         minWorkers: 1,
-        maxWorkers: 5
+        maxWorkers: 5,
+        updateThresholdHours: 0,  // No aplica para verification
+        schedule: {
+          workStartHour: 0,
+          workEndHour: 23,
+          workDays: [0, 1, 2, 3, 4, 5, 6],
+          useGlobalSchedule: true
+        }
       })
     },
     update: {
@@ -251,7 +289,14 @@ const ManagerSettingsSchema = new Schema<IManagerSettings>({
         workerScript: './dist/workers/update-worker.js',
         cronExpression: '*/2 * * * *',
         minWorkers: 1,
-        maxWorkers: 3
+        maxWorkers: 3,
+        updateThresholdHours: 24,  // Actualizar documentos cada 24 horas
+        schedule: {
+          workStartHour: 8,        // Solo de 8am a 20pm por defecto
+          workEndHour: 20,
+          workDays: [1, 2, 3, 4, 5],  // Lunes a viernes
+          useGlobalSchedule: false    // Usa su propio horario
+        }
       })
     },
     stuck: {
@@ -262,7 +307,14 @@ const ManagerSettingsSchema = new Schema<IManagerSettings>({
         workerScript: './dist/workers/stuck-worker.js',
         cronExpression: '0 */2 * * *',  // Cada 2 horas
         minWorkers: 1,
-        maxWorkers: 1  // Solo 1 instancia para stuck
+        maxWorkers: 1,  // Solo 1 instancia para stuck
+        updateThresholdHours: 0,  // No aplica para stuck
+        schedule: {
+          workStartHour: 0,
+          workEndHour: 23,
+          workDays: [0, 1, 2, 3, 4, 5, 6],
+          useGlobalSchedule: true
+        }
       })
     }
   }
@@ -599,6 +651,49 @@ ManagerConfigEjeSchema.statics.isWithinWorkingHours = async function(): Promise<
   return true;
 };
 
+ManagerConfigEjeSchema.statics.isWorkerWithinWorkingHours = async function(
+  workerType: ManagerType
+): Promise<boolean> {
+  const config = await this.findOne({ name: 'eje-manager' }).lean();
+
+  if (!config) return false;
+
+  const workerConfig = config.config.workers[workerType];
+  if (!workerConfig) return false;
+
+  const timezone = config.config.timezone || 'America/Argentina/Buenos_Aires';
+  const now = new Date();
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: 'numeric',
+    hour12: false
+  });
+  const currentHour = parseInt(formatter.format(now));
+
+  const dayFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    weekday: 'short'
+  });
+  const dayOfWeek = new Date(now.toLocaleString('en-US', { timeZone: timezone })).getDay();
+
+  // Si usa horario global, verificar horario global
+  if (workerConfig.schedule?.useGlobalSchedule) {
+    const { workStartHour, workEndHour, workDays } = config.config;
+    if (!workDays.includes(dayOfWeek)) return false;
+    if (currentHour < workStartHour || currentHour >= workEndHour) return false;
+    return true;
+  }
+
+  // Usar horario específico del worker
+  const { workStartHour, workEndHour, workDays } = workerConfig.schedule;
+
+  if (!workDays.includes(dayOfWeek)) return false;
+  if (currentHour < workStartHour || currentHour >= workEndHour) return false;
+
+  return true;
+};
+
 ManagerConfigEjeSchema.statics.markManagerRunning = async function(
   isRunning: boolean
 ): Promise<void> {
@@ -629,6 +724,7 @@ export interface IManagerConfigEjeModel extends Model<IManagerConfigEje> {
   acknowledgeAlert(alertIndex: number, acknowledgedBy: string): Promise<void>;
   recordScaleAction(workerType: ManagerType, action: 'scale_up' | 'scale_down' | 'no_change', from: number, to: number, reason: string): Promise<void>;
   isWithinWorkingHours(): Promise<boolean>;
+  isWorkerWithinWorkingHours(workerType: ManagerType): Promise<boolean>;
   markManagerRunning(isRunning: boolean): Promise<void>;
 }
 

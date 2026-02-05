@@ -41,15 +41,23 @@ exports.ManagerConfigEje = void 0;
  */
 const mongoose_1 = __importStar(require("mongoose"));
 // ========== VALORES POR DEFECTO ==========
+const DEFAULT_WORKER_SCHEDULE = {
+    workStartHour: 0,
+    workEndHour: 23,
+    workDays: [0, 1, 2, 3, 4, 5, 6],
+    useGlobalSchedule: true
+};
 const DEFAULT_WORKER_CONFIG = {
     enabled: true,
     minWorkers: 1,
     maxWorkers: 3,
     scaleUpThreshold: 100,
     scaleDownThreshold: 10,
+    updateThresholdHours: 24,
     batchSize: 10,
     delayBetweenRequests: 2000,
     maxRetries: 3,
+    schedule: { ...DEFAULT_WORKER_SCHEDULE },
     cronExpression: '*/2 * * * *',
     workerName: 'eje-worker',
     workerScript: './dist/workers/worker.js',
@@ -63,15 +71,23 @@ const DEFAULT_WORKER_STATUS = {
     errorsThisCycle: 0
 };
 // ========== SCHEMAS ==========
+const WorkerScheduleSchema = new mongoose_1.Schema({
+    workStartHour: { type: Number, default: 0 },
+    workEndHour: { type: Number, default: 23 },
+    workDays: { type: [Number], default: [0, 1, 2, 3, 4, 5, 6] },
+    useGlobalSchedule: { type: Boolean, default: true }
+}, { _id: false });
 const WorkerConfigSchema = new mongoose_1.Schema({
     enabled: { type: Boolean, default: true },
     minWorkers: { type: Number, default: 1 },
     maxWorkers: { type: Number, default: 3 },
     scaleUpThreshold: { type: Number, default: 100 },
     scaleDownThreshold: { type: Number, default: 10 },
+    updateThresholdHours: { type: Number, default: 24 },
     batchSize: { type: Number, default: 10 },
     delayBetweenRequests: { type: Number, default: 2000 },
     maxRetries: { type: Number, default: 3 },
+    schedule: { type: WorkerScheduleSchema, default: () => ({ ...DEFAULT_WORKER_SCHEDULE }) },
     cronExpression: { type: String, default: '*/2 * * * *' },
     workerName: { type: String, default: 'eje-worker' },
     workerScript: { type: String, default: './dist/workers/worker.js' },
@@ -96,7 +112,14 @@ const ManagerSettingsSchema = new mongoose_1.Schema({
                 workerScript: './dist/workers/verification-worker.js',
                 cronExpression: '*/2 * * * *',
                 minWorkers: 1,
-                maxWorkers: 5
+                maxWorkers: 5,
+                updateThresholdHours: 0, // No aplica para verification
+                schedule: {
+                    workStartHour: 0,
+                    workEndHour: 23,
+                    workDays: [0, 1, 2, 3, 4, 5, 6],
+                    useGlobalSchedule: true
+                }
             })
         },
         update: {
@@ -107,7 +130,14 @@ const ManagerSettingsSchema = new mongoose_1.Schema({
                 workerScript: './dist/workers/update-worker.js',
                 cronExpression: '*/2 * * * *',
                 minWorkers: 1,
-                maxWorkers: 3
+                maxWorkers: 3,
+                updateThresholdHours: 24, // Actualizar documentos cada 24 horas
+                schedule: {
+                    workStartHour: 8, // Solo de 8am a 20pm por defecto
+                    workEndHour: 20,
+                    workDays: [1, 2, 3, 4, 5], // Lunes a viernes
+                    useGlobalSchedule: false // Usa su propio horario
+                }
             })
         },
         stuck: {
@@ -118,7 +148,14 @@ const ManagerSettingsSchema = new mongoose_1.Schema({
                 workerScript: './dist/workers/stuck-worker.js',
                 cronExpression: '0 */2 * * *', // Cada 2 horas
                 minWorkers: 1,
-                maxWorkers: 1 // Solo 1 instancia para stuck
+                maxWorkers: 1, // Solo 1 instancia para stuck
+                updateThresholdHours: 0, // No aplica para stuck
+                schedule: {
+                    workStartHour: 0,
+                    workEndHour: 23,
+                    workDays: [0, 1, 2, 3, 4, 5, 6],
+                    useGlobalSchedule: true
+                }
             })
         }
     }
@@ -361,6 +398,43 @@ ManagerConfigEjeSchema.statics.isWithinWorkingHours = async function () {
     const currentHour = parseInt(formatter.format(now));
     const currentDay = now.getDay();
     if (!workDays.includes(currentDay))
+        return false;
+    if (currentHour < workStartHour || currentHour >= workEndHour)
+        return false;
+    return true;
+};
+ManagerConfigEjeSchema.statics.isWorkerWithinWorkingHours = async function (workerType) {
+    const config = await this.findOne({ name: 'eje-manager' }).lean();
+    if (!config)
+        return false;
+    const workerConfig = config.config.workers[workerType];
+    if (!workerConfig)
+        return false;
+    const timezone = config.config.timezone || 'America/Argentina/Buenos_Aires';
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        hour: 'numeric',
+        hour12: false
+    });
+    const currentHour = parseInt(formatter.format(now));
+    const dayFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        weekday: 'short'
+    });
+    const dayOfWeek = new Date(now.toLocaleString('en-US', { timeZone: timezone })).getDay();
+    // Si usa horario global, verificar horario global
+    if (workerConfig.schedule?.useGlobalSchedule) {
+        const { workStartHour, workEndHour, workDays } = config.config;
+        if (!workDays.includes(dayOfWeek))
+            return false;
+        if (currentHour < workStartHour || currentHour >= workEndHour)
+            return false;
+        return true;
+    }
+    // Usar horario específico del worker
+    const { workStartHour, workEndHour, workDays } = workerConfig.schedule;
+    if (!workDays.includes(dayOfWeek))
         return false;
     if (currentHour < workStartHour || currentHour >= workEndHour)
         return false;

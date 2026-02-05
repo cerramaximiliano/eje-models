@@ -5,15 +5,23 @@
  */
 import { Document, Model } from 'mongoose';
 export type ManagerType = 'verification' | 'update' | 'stuck';
+export interface IWorkerSchedule {
+    workStartHour: number;
+    workEndHour: number;
+    workDays: number[];
+    useGlobalSchedule: boolean;
+}
 export interface IManagerWorkerConfig {
     enabled: boolean;
     minWorkers: number;
     maxWorkers: number;
     scaleUpThreshold: number;
     scaleDownThreshold: number;
+    updateThresholdHours: number;
     batchSize: number;
     delayBetweenRequests: number;
     maxRetries: number;
+    schedule: IWorkerSchedule;
     cronExpression: string;
     workerName: string;
     workerScript: string;
@@ -150,6 +158,7 @@ export interface IManagerConfigEjeModel extends Model<IManagerConfigEje> {
     acknowledgeAlert(alertIndex: number, acknowledgedBy: string): Promise<void>;
     recordScaleAction(workerType: ManagerType, action: 'scale_up' | 'scale_down' | 'no_change', from: number, to: number, reason: string): Promise<void>;
     isWithinWorkingHours(): Promise<boolean>;
+    isWorkerWithinWorkingHours(workerType: ManagerType): Promise<boolean>;
     markManagerRunning(isRunning: boolean): Promise<void>;
 }
 export declare const ManagerConfigEje: IManagerConfigEjeModel;
