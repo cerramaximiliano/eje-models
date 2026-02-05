@@ -104,7 +104,7 @@ export interface ICausasEje extends Document {
   // ========== ESTADO DE PROCESAMIENTO ==========
   source: 'app' | 'import' | 'scraping';
   verified: boolean;          // true = se verificó si existe
-  isValid: boolean;           // true = existe, false = no existe
+  isValid: boolean | null;    // null = pendiente, true = existe, false = no existe
   lastUpdate?: Date;
 
   // ========== CONTROL DE WORKERS ==========
@@ -243,7 +243,7 @@ const CausasEjeSchema = new Schema<ICausasEje>({
     default: 'app'
   },
   verified: { type: Boolean, default: false },
-  isValid: { type: Boolean, default: true },
+  isValid: { type: Boolean, default: null },  // null = pendiente, true = existe, false = no existe
   lastUpdate: { type: Date },
 
   // Control de workers
@@ -303,7 +303,7 @@ CausasEjeSchema.statics.findByNumeroAnio = function(numero: number, anio: number
 CausasEjeSchema.statics.findPendingVerification = function(limit: number = 10) {
   return this.find({
     verified: false,
-    isValid: true,
+    isValid: null,  // null = pendiente de verificación
     errorCount: { $lt: 3 }
   })
   .sort({ createdAt: 1 })

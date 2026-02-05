@@ -76,7 +76,7 @@ export interface ICausasEje extends Document {
     isPrivate: boolean;
     source: 'app' | 'import' | 'scraping';
     verified: boolean;
-    isValid: boolean;
+    isValid: boolean | null;
     lastUpdate?: Date;
     verifiedAt?: Date;
     detailsLoaded: boolean;

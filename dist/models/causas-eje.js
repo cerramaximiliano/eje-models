@@ -135,7 +135,7 @@ const CausasEjeSchema = new mongoose_1.Schema({
         default: 'app'
     },
     verified: { type: Boolean, default: false },
-    isValid: { type: Boolean, default: true },
+    isValid: { type: Boolean, default: null }, // null = pendiente, true = existe, false = no existe
     lastUpdate: { type: Date },
     // Control de workers
     verifiedAt: { type: Date },
@@ -183,7 +183,7 @@ CausasEjeSchema.statics.findByNumeroAnio = function (numero, anio) {
 CausasEjeSchema.statics.findPendingVerification = function (limit = 10) {
     return this.find({
         verified: false,
-        isValid: true,
+        isValid: null, // null = pendiente de verificación
         errorCount: { $lt: 3 }
     })
         .sort({ createdAt: 1 })
