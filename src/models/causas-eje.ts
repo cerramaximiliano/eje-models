@@ -51,6 +51,22 @@ export interface IUpdateHistoryEntry {
   };
 }
 
+// Interface para estadísticas de actualización del documento
+export interface IUpdateStatsToday {
+  date: string;           // Fecha en formato YYYY-MM-DD
+  count: number;          // Cantidad de actualizaciones hoy
+  hours: number[];        // Horas en las que se actualizó
+}
+
+export interface IUpdateStats {
+  avgMs: number;          // Promedio de duración de actualizaciones en ms
+  count: number;          // Total de actualizaciones realizadas
+  errors: number;         // Total de errores en actualizaciones
+  newMovs: number;        // Total de movimientos nuevos encontrados
+  today?: IUpdateStatsToday;  // Estadísticas del día actual
+  last?: Date;            // Última actualización
+}
+
 export interface ICausasEje extends Document {
   // ========== IDENTIFICACIÓN ==========
   cuij: string;                     // Código Único de Identificación Judicial
@@ -109,6 +125,7 @@ export interface ICausasEje extends Document {
   userUpdatesEnabled: IUserUpdateEnabled[];   // Control de actualizaciones por usuario
   update: boolean;                            // Si al menos un usuario requiere actualizaciones
   updateHistory: IUpdateHistoryEntry[];       // Historial de operaciones
+  updateStats?: IUpdateStats;                 // Estadísticas de actualizaciones
 
   // ========== TIMESTAMPS ==========
   createdAt: Date;
@@ -161,6 +178,21 @@ const UpdateHistoryEntrySchema = new Schema<IUpdateHistoryEntry>({
     searchTerm: { type: String },
     error: { type: String }
   }
+}, { _id: false });
+
+const UpdateStatsTodaySchema = new Schema<IUpdateStatsToday>({
+  date: { type: String, required: true },
+  count: { type: Number, default: 1 },
+  hours: { type: [Number], default: [] }
+}, { _id: false });
+
+const UpdateStatsSchema = new Schema<IUpdateStats>({
+  avgMs: { type: Number, default: 0 },
+  count: { type: Number, default: 0 },
+  errors: { type: Number, default: 0 },
+  newMovs: { type: Number, default: 0 },
+  today: { type: UpdateStatsTodaySchema },
+  last: { type: Date }
 }, { _id: false });
 
 // ========== SCHEMA PRINCIPAL ==========
@@ -231,7 +263,8 @@ const CausasEjeSchema = new Schema<ICausasEje>({
   userCausaIds: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   userUpdatesEnabled: { type: [UserUpdateEnabledSchema], default: [] },
   update: { type: Boolean, default: false },
-  updateHistory: { type: [UpdateHistoryEntrySchema], default: [] }
+  updateHistory: { type: [UpdateHistoryEntrySchema], default: [] },
+  updateStats: { type: UpdateStatsSchema }
 }, {
   timestamps: true,
   collection: 'causas-eje'

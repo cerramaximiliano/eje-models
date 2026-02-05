@@ -82,6 +82,19 @@ const UpdateHistoryEntrySchema = new mongoose_1.Schema({
         error: { type: String }
     }
 }, { _id: false });
+const UpdateStatsTodaySchema = new mongoose_1.Schema({
+    date: { type: String, required: true },
+    count: { type: Number, default: 1 },
+    hours: { type: [Number], default: [] }
+}, { _id: false });
+const UpdateStatsSchema = new mongoose_1.Schema({
+    avgMs: { type: Number, default: 0 },
+    count: { type: Number, default: 0 },
+    errors: { type: Number, default: 0 },
+    newMovs: { type: Number, default: 0 },
+    today: { type: UpdateStatsTodaySchema },
+    last: { type: Date }
+}, { _id: false });
 // ========== SCHEMA PRINCIPAL ==========
 const CausasEjeSchema = new mongoose_1.Schema({
     // Identificación
@@ -139,7 +152,8 @@ const CausasEjeSchema = new mongoose_1.Schema({
     userCausaIds: [{ type: mongoose_1.Schema.Types.ObjectId, ref: 'User' }],
     userUpdatesEnabled: { type: [UserUpdateEnabledSchema], default: [] },
     update: { type: Boolean, default: false },
-    updateHistory: { type: [UpdateHistoryEntrySchema], default: [] }
+    updateHistory: { type: [UpdateHistoryEntrySchema], default: [] },
+    updateStats: { type: UpdateStatsSchema }
 }, {
     timestamps: true,
     collection: 'causas-eje'

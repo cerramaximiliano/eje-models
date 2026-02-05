@@ -41,6 +41,19 @@ export interface IUpdateHistoryEntry {
         error?: string;
     };
 }
+export interface IUpdateStatsToday {
+    date: string;
+    count: number;
+    hours: number[];
+}
+export interface IUpdateStats {
+    avgMs: number;
+    count: number;
+    errors: number;
+    newMovs: number;
+    today?: IUpdateStatsToday;
+    last?: Date;
+}
 export interface ICausasEje extends Document {
     cuij: string;
     numero: number;
@@ -78,6 +91,7 @@ export interface ICausasEje extends Document {
     userUpdatesEnabled: IUserUpdateEnabled[];
     update: boolean;
     updateHistory: IUpdateHistoryEntry[];
+    updateStats?: IUpdateStats;
     createdAt: Date;
     updatedAt: Date;
 }
