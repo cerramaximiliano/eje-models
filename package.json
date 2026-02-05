@@ -23,8 +23,8 @@
     "mongoose": ">=7.0.0"
   },
   "devDependencies": {
-    "mongoose": "^8.0.0",
     "@types/node": "^20.0.0",
+    "mongoose": "^8.22.1",
     "typescript": "^5.0.0"
   }
 }
