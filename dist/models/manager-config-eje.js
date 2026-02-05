@@ -418,13 +418,9 @@ ManagerConfigEjeSchema.statics.isWorkerWithinWorkingHours = async function (work
         hour12: false
     });
     const currentHour = parseInt(formatter.format(now));
-    const dayFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
-        weekday: 'short'
-    });
     const dayOfWeek = new Date(now.toLocaleString('en-US', { timeZone: timezone })).getDay();
-    // Si usa horario global, verificar horario global
-    if (workerConfig.schedule?.useGlobalSchedule) {
+    // Si no hay schedule definido o usa horario global, verificar horario global
+    if (!workerConfig.schedule || workerConfig.schedule.useGlobalSchedule !== false) {
         const { workStartHour, workEndHour, workDays } = config.config;
         if (!workDays.includes(dayOfWeek))
             return false;
@@ -433,7 +429,10 @@ ManagerConfigEjeSchema.statics.isWorkerWithinWorkingHours = async function (work
         return true;
     }
     // Usar horario específico del worker
-    const { workStartHour, workEndHour, workDays } = workerConfig.schedule;
+    const schedule = workerConfig.schedule;
+    const workStartHour = schedule.workStartHour ?? 0;
+    const workEndHour = schedule.workEndHour ?? 23;
+    const workDays = schedule.workDays ?? [0, 1, 2, 3, 4, 5, 6];
     if (!workDays.includes(dayOfWeek))
         return false;
     if (currentHour < workStartHour || currentHour >= workEndHour)
