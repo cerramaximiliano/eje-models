@@ -58,6 +58,7 @@ export interface ICausasEje extends Document {
     cuij: string;
     numero: number;
     anio: number;
+    searchTerm?: string;
     caratula: string;
     objeto?: string;
     monto?: number;
@@ -78,6 +79,10 @@ export interface ICausasEje extends Document {
     verified: boolean;
     isValid: boolean | null;
     lastUpdate?: Date;
+    isPivot: boolean;
+    pivotCausaIds: mongoose.Types.ObjectId[];
+    resolved: boolean;
+    selectedCausaId?: mongoose.Types.ObjectId;
     verifiedAt?: Date;
     detailsLoaded: boolean;
     detailsLastUpdate?: Date;

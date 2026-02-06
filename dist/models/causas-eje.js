@@ -106,6 +106,7 @@ const CausasEjeSchema = new mongoose_1.Schema({
     },
     numero: { type: Number, required: true },
     anio: { type: Number, required: true },
+    searchTerm: { type: String }, // Término de búsqueda original (para pivotes)
     // Datos del expediente
     caratula: { type: String, required: true },
     objeto: { type: String },
@@ -137,6 +138,11 @@ const CausasEjeSchema = new mongoose_1.Schema({
     verified: { type: Boolean, default: false },
     isValid: { type: Boolean, default: null }, // null = pendiente, true = existe, false = no existe
     lastUpdate: { type: Date },
+    // Pivote (para múltiples resultados)
+    isPivot: { type: Boolean, default: false },
+    pivotCausaIds: [{ type: mongoose_1.Schema.Types.ObjectId, ref: 'CausasEje' }],
+    resolved: { type: Boolean, default: false },
+    selectedCausaId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'CausasEje' },
     // Control de workers
     verifiedAt: { type: Date },
     detailsLoaded: { type: Boolean, default: false },
@@ -173,8 +179,14 @@ CausasEjeSchema.index({ caratula: 'text' });
 CausasEjeSchema.index({ folderIds: 1 });
 CausasEjeSchema.index({ userCausaIds: 1 });
 CausasEjeSchema.index({ update: 1 });
+// Índices para pivotes
+CausasEjeSchema.index({ isPivot: 1 });
+CausasEjeSchema.index({ isPivot: 1, resolved: 1 });
 // ========== MÉTODOS ESTÁTICOS ==========
 CausasEjeSchema.statics.findByCuij = function (cuij) {
+    return this.findOne({ cuij, isPivot: { $ne: true } });
+};
+CausasEjeSchema.statics.findByCuijIncludingPivots = function (cuij) {
     return this.findOne({ cuij });
 };
 CausasEjeSchema.statics.findByNumeroAnio = function (numero, anio) {
@@ -184,6 +196,7 @@ CausasEjeSchema.statics.findPendingVerification = function (limit = 10) {
     return this.find({
         verified: false,
         isValid: null, // null = pendiente de verificación
+        isPivot: { $ne: true }, // Excluir pivotes ya procesados
         errorCount: { $lt: 3 }
     })
         .sort({ createdAt: 1 })

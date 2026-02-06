@@ -72,6 +72,7 @@ export interface ICausasEje extends Document {
   cuij: string;                     // Código Único de Identificación Judicial
   numero: number;
   anio: number;
+  searchTerm?: string;              // Término de búsqueda original (para pivotes)
 
   // ========== DATOS DEL EXPEDIENTE ==========
   caratula: string;
@@ -106,6 +107,12 @@ export interface ICausasEje extends Document {
   verified: boolean;          // true = se verificó si existe
   isValid: boolean | null;    // null = pendiente, true = existe, false = no existe
   lastUpdate?: Date;
+
+  // ========== PIVOTE (para múltiples resultados) ==========
+  isPivot: boolean;                               // true = documento pivote de búsqueda
+  pivotCausaIds: mongoose.Types.ObjectId[];       // CausasEje vinculadas al pivote
+  resolved: boolean;                              // true = usuario ya eligió una causa
+  selectedCausaId?: mongoose.Types.ObjectId;      // Causa elegida por el usuario
 
   // ========== CONTROL DE WORKERS ==========
   verifiedAt?: Date;
@@ -207,6 +214,7 @@ const CausasEjeSchema = new Schema<ICausasEje>({
   },
   numero: { type: Number, required: true },
   anio: { type: Number, required: true },
+  searchTerm: { type: String },  // Término de búsqueda original (para pivotes)
 
   // Datos del expediente
   caratula: { type: String, required: true },
@@ -245,6 +253,12 @@ const CausasEjeSchema = new Schema<ICausasEje>({
   verified: { type: Boolean, default: false },
   isValid: { type: Boolean, default: null },  // null = pendiente, true = existe, false = no existe
   lastUpdate: { type: Date },
+
+  // Pivote (para múltiples resultados)
+  isPivot: { type: Boolean, default: false },
+  pivotCausaIds: [{ type: Schema.Types.ObjectId, ref: 'CausasEje' }],
+  resolved: { type: Boolean, default: false },
+  selectedCausaId: { type: Schema.Types.ObjectId, ref: 'CausasEje' },
 
   // Control de workers
   verifiedAt: { type: Date },
@@ -290,9 +304,17 @@ CausasEjeSchema.index({ folderIds: 1 });
 CausasEjeSchema.index({ userCausaIds: 1 });
 CausasEjeSchema.index({ update: 1 });
 
+// Índices para pivotes
+CausasEjeSchema.index({ isPivot: 1 });
+CausasEjeSchema.index({ isPivot: 1, resolved: 1 });
+
 // ========== MÉTODOS ESTÁTICOS ==========
 
 CausasEjeSchema.statics.findByCuij = function(cuij: string) {
+  return this.findOne({ cuij, isPivot: { $ne: true } });
+};
+
+CausasEjeSchema.statics.findByCuijIncludingPivots = function(cuij: string) {
   return this.findOne({ cuij });
 };
 
@@ -304,6 +326,7 @@ CausasEjeSchema.statics.findPendingVerification = function(limit: number = 10) {
   return this.find({
     verified: false,
     isValid: null,  // null = pendiente de verificación
+    isPivot: { $ne: true },  // Excluir pivotes ya procesados
     errorCount: { $lt: 3 }
   })
   .sort({ createdAt: 1 })
