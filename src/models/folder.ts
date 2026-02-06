@@ -105,7 +105,16 @@ const FolderEjeSchema = new Schema({
   pendingCausaType: { type: String, enum: ['CausasEje', 'MEV'] },
   searchTerm: { type: String },
 
-  overwrite: { type: Boolean }
+  overwrite: { type: Boolean },
+
+  causaAssociationHistory: [{
+    status: { type: String, enum: ['pending', 'pending_selection', 'success', 'failed', 'not_attempted'] },
+    timestamp: { type: Date, default: Date.now },
+    source: { type: String, enum: ['user', 'worker', 'api', 'system'] },
+    details: { type: String },
+    causaId: { type: Schema.Types.ObjectId },
+    searchTerm: { type: String }
+  }]
 }, {
   timestamps: true,
   collection: 'folders',  // Usar colección existente
