@@ -22,4 +22,5 @@ __exportStar(require("./configuracion-eje"), exports);
 __exportStar(require("./manager-config-eje"), exports);
 __exportStar(require("./worker-stats-eje"), exports);
 __exportStar(require("./folder"), exports);
+__exportStar(require("./eje-pending-selection-notification"), exports);
 //# sourceMappingURL=index.js.map
