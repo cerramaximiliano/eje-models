@@ -21,6 +21,7 @@ export interface IFolderEjeFields {
     judFolder?: {
         numberJudFolder?: string;
         courtNumber?: string;
+        cuij?: string;
     };
     pjn: boolean;
     mev: boolean;

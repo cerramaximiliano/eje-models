@@ -28,6 +28,9 @@ export interface IFolderEjeFields {
   judFolder?: {
     numberJudFolder?: string;
     courtNumber?: string;
+    // CUIJ del expediente (EJE/CABA). Lo escribe verification-worker
+    // cuando la causa queda asociada / verificada.
+    cuij?: string;
   };
 
   // Flags de plataforma
@@ -77,7 +80,8 @@ const FolderEjeSchema = new Schema({
 
   judFolder: {
     numberJudFolder: { type: String },
-    courtNumber: { type: String }
+    courtNumber: { type: String },
+    cuij: { type: String }
   },
 
   pjn: { type: Boolean, default: false },

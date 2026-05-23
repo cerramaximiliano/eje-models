@@ -56,7 +56,8 @@ const FolderEjeSchema = new mongoose_1.Schema({
     },
     judFolder: {
         numberJudFolder: { type: String },
-        courtNumber: { type: String }
+        courtNumber: { type: String },
+        cuij: { type: String }
     },
     pjn: { type: Boolean, default: false },
     mev: { type: Boolean, default: false },
