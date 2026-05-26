@@ -7,6 +7,13 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 // ========== INTERFACES ==========
 
+export interface IAdjunto {
+  name: string;            // Título del archivo (ej: "Gestión Integral Tributaria nicholson.pdf")
+  url: string;             // URL pública al PDF en el portal EJE
+  fecha?: Date;            // Fecha de carga del adjunto
+  nivelAccesoCod?: string; // Nivel de acceso del adjunto en el portal (ej: "PUBLIC")
+}
+
 export interface IMovimiento {
   fecha: Date;
   tipo: string;
@@ -14,6 +21,8 @@ export interface IMovimiento {
   detalle?: string;
   firmante?: string;
   numero?: string;         // Número de actuación (ej: "19841413/2025")
+  actId?: number;          // ID interno del portal EJE — necesario para armar URLs de adjuntos
+  attachments?: IAdjunto[];// Adjuntos descargables del movimiento
 }
 
 export interface IInterviniente {
@@ -141,13 +150,22 @@ export interface ICausasEje extends Document {
 
 // ========== SCHEMAS ==========
 
+const AdjuntoSchema = new Schema<IAdjunto>({
+  name: { type: String, required: true },
+  url: { type: String, required: true },
+  fecha: { type: Date },
+  nivelAccesoCod: { type: String }
+}, { _id: false });
+
 const MovimientoSchema = new Schema<IMovimiento>({
   fecha: { type: Date, required: true },
   tipo: { type: String, required: true },
   descripcion: { type: String, required: true },
   detalle: { type: String },
   firmante: { type: String },
-  numero: { type: String }
+  numero: { type: String },
+  actId: { type: Number },
+  attachments: { type: [AdjuntoSchema], default: undefined }
 }, { _id: false });
 
 const IntervinienteSchema = new Schema<IInterviniente>({

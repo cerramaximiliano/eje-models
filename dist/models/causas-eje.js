@@ -41,13 +41,21 @@ exports.CausasEje = void 0;
  */
 const mongoose_1 = __importStar(require("mongoose"));
 // ========== SCHEMAS ==========
+const AdjuntoSchema = new mongoose_1.Schema({
+    name: { type: String, required: true },
+    url: { type: String, required: true },
+    fecha: { type: Date },
+    nivelAccesoCod: { type: String }
+}, { _id: false });
 const MovimientoSchema = new mongoose_1.Schema({
     fecha: { type: Date, required: true },
     tipo: { type: String, required: true },
     descripcion: { type: String, required: true },
     detalle: { type: String },
     firmante: { type: String },
-    numero: { type: String }
+    numero: { type: String },
+    actId: { type: Number },
+    attachments: { type: [AdjuntoSchema], default: undefined }
 }, { _id: false });
 const IntervinienteSchema = new mongoose_1.Schema({
     tipo: { type: String, required: true },

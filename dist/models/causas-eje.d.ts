@@ -4,6 +4,12 @@
  * Poder Judicial de la Ciudad de Buenos Aires - Fuero Contencioso Administrativo
  */
 import mongoose, { Document } from 'mongoose';
+export interface IAdjunto {
+    name: string;
+    url: string;
+    fecha?: Date;
+    nivelAccesoCod?: string;
+}
 export interface IMovimiento {
     fecha: Date;
     tipo: string;
@@ -11,6 +17,8 @@ export interface IMovimiento {
     detalle?: string;
     firmante?: string;
     numero?: string;
+    actId?: number;
+    attachments?: IAdjunto[];
 }
 export interface IInterviniente {
     tipo: string;
